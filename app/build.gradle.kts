@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    id("org.jetbrains.kotlin.android")
     alias(libs.plugins.google.services)
 }
 
@@ -36,9 +35,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
     buildFeatures {
         compose = true
     }
@@ -53,7 +49,6 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-   // implementation(libs.firebase.functions.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
@@ -61,37 +56,23 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
-implementation("androidx.compose.material:material-icons-extended")
 
-// Room (Base de datos local)
-val room_version = "2.6.1"
-implementation("androidx.room:room-runtime:$room_version")
-implementation("androidx.room:room-ktx:$room_version")
-
-// WorkManager (Tareas en segundo plano)
-val work_version = "2.9.0"
-implementation("androidx.work:work-runtime-ktx:$work_version")
-
-// Hilt para WorkManager (Inyección de dependencias en Workers)
-implementation("androidx.hilt:hilt-work:1.2.0")
-implementation("com.google.dagger:hilt-android:2.51.1")
-
-// Lifecycle
-implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0")
-
-// Firebase y Google Services
-implementation(platform(libs.firebase.bom))
-implementation(libs.firebase.auth)
-implementation(libs.firebase.firestore)
-implementation(libs.firebase.storage)
-implementation(libs.play.services.auth)
-implementation(libs.androidx.credentials)
-implementation(libs.androidx.credentials.play)
-implementation(libs.googleid)
-implementation(libs.androidx.lifecycle.viewmodel.compose)
-
-
-    implementation(libs.androidx.material.icons.extended)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.play.services.auth)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play)
+    implementation(libs.googleid)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.storage)
+    implementation(libs.play.services.auth)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play)
+    implementation(libs.googleid)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.material.icons.extended)
 }
