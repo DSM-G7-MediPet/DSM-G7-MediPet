@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "383450712485",
+    "project_id": "dsm-g7-medipet",
+    "storage_bucket": "dsm-g7-medipet.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:383450712485:android:deb60e1bb047fe4bb3804c",
+        "android_client_info": {
+          "package_name": "com.dsm.g7.medipet"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "383450712485-5mkfq15lu5as9upk29t58kg19qpf2nmr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dsm.g7.medipet",
+            "certificate_hash": "806cc4b897a2ae241e847268ae7eecf66510780c"
+          }
+        },
+        {
+          "client_id": "383450712485-veig8vqk958lg7vconmgt2nh0irakk9i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dsm.g7.medipet",
+            "certificate_hash": "b393ff52e77c63a0400e1b310a75ae87c2a28565"
+          }
+        },
+        {
+          "client_id": "383450712485-i56di6uqfauka9vml77snea9est5qd9m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAkpox9ZX51_nzCGnU8D_7-f4sIMKze3cE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "383450712485-i56di6uqfauka9vml77snea9est5qd9m.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
