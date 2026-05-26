@@ -8,6 +8,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,7 +22,8 @@ import com.dsm.g7.medipet.data.local.Pet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PetScreen(viewModel: PetViewModel = viewModel()) {
+fun PetScreen(viewModel: PetViewModel = viewModel(),
+              onNavigateToVaccines: () -> Unit = {}) {
     val pets by viewModel.pets.collectAsState()
     val showAddDialog by viewModel.showAddDialog.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
@@ -29,6 +32,16 @@ fun PetScreen(viewModel: PetViewModel = viewModel()) {
         topBar = {
             TopAppBar(
                 title = { Text("Mis Mascotas", fontWeight = FontWeight.Bold) },
+                actions = {
+                    IconButton(onClick = {
+                        com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+                    }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Cerrar sesión")
+                    }
+                    IconButton(onClick = onNavigateToVaccines) {
+                        Icon(Icons.Filled.Star, contentDescription = "Ver vacunas")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer

@@ -33,6 +33,8 @@ class AuthViewModel : ViewModel() {
         auth.addAuthStateListener { firebaseAuth ->
             _user.value = firebaseAuth.currentUser
         }
+        // Cerrar sesión al iniciar la app
+        auth.signOut()
     }
 
     fun signUp(email: String, password: String) {
