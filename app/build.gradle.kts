@@ -90,4 +90,8 @@ implementation(libs.androidx.credentials.play)
 implementation(libs.googleid)
 implementation(libs.androidx.lifecycle.viewmodel.compose)
 
+
+    implementation(libs.androidx.material.icons.extended)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+
 }
