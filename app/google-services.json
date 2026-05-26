@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "383450712485-veig8vqk958lg7vconmgt2nh0irakk9i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dsm.g7.medipet",
+            "certificate_hash": "b393ff52e77c63a0400e1b310a75ae87c2a28565"
+          }
+        },
+        {
           "client_id": "383450712485-i56di6uqfauka9vml77snea9est5qd9m.apps.googleusercontent.com",
           "client_type": 3
         }
