@@ -14,31 +14,45 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.dsm.g7.medipet.auth.ProfileScreen
 
 object Routes {
     const val LOGIN = "login"
     const val SIGNUP = "signup"
     const val PETS = "pets"
     const val VACCINES = "vaccines"
+    const val PROFILE = "profile"
 }
 
 @Composable
 fun MediPetNavigation(authViewModel: AuthViewModel = viewModel()) {
     val navController = rememberNavController()
-    val user by authViewModel.user.collectAsState()
+
+    // Auth manejada aquí, SIN leer el estado en el cuerpo del NavHost
+    LaunchedEffect(Unit) {
+        authViewModel.user.collect { user ->
+            val current = navController.currentDestination?.route
+            if (user == null) {
+                if (current != Routes.LOGIN && current != Routes.SIGNUP) {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            } else {
+                if (current == Routes.LOGIN || current == Routes.SIGNUP || current == null) {
+                    navController.navigate(Routes.PETS) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            }
+        }
+    }
 
     NavHost(
         navController = navController,
         startDestination = Routes.LOGIN
     ) {
         composable(Routes.LOGIN) {
-            LaunchedEffect(user) {
-                if (user != null) {
-                    navController.navigate(Routes.PETS) {
-                        popUpTo(Routes.LOGIN) { inclusive = true }
-                    }
-                }
-            }
             LoginScreen(
                 viewModel = authViewModel,
                 onNavigateToSignUp = { navController.navigate(Routes.SIGNUP) }
@@ -51,23 +65,17 @@ fun MediPetNavigation(authViewModel: AuthViewModel = viewModel()) {
             )
         }
         composable(Routes.PETS) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text("Pantalla de mascotas")
-                Button(onClick = {
-                    android.util.Log.d("MediPet", "Boton tocado")
-                    navController.navigate(Routes.VACCINES)
-                }) {
-                    Text("Ir a vacunas")
-                }
-            }
+            PetScreen(
+                onNavigateToVaccines = { navController.navigate(Routes.VACCINES) },
+                onNavigateToProfile = { navController.navigate(Routes.PROFILE) }
+            )
         }
         composable(Routes.VACCINES) {
-            android.util.Log.d("MediPet", "Mostrando VaccineScreen")
-            VaccineScreen(
+            VaccineScreen(onNavigateBack = { navController.popBackStack() })
+        }
+        composable(Routes.PROFILE) {
+            ProfileScreen(
+                viewModel = authViewModel,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

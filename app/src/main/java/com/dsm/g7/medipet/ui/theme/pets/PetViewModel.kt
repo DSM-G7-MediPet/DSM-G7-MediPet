@@ -32,7 +32,7 @@ class PetViewModel : ViewModel() {
             _errorMessage.value = "Nombre y especie son obligatorios"
             return
         }
-        val ownerId = auth.currentUser?.uid ?: return
+        val ownerId = auth.currentUser?.uid ?: "sin-usuario"
         val newPet = Pet(
             id = UUID.randomUUID().toString(),
             ownerId = ownerId,

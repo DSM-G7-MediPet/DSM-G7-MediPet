@@ -19,11 +19,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dsm.g7.medipet.data.local.Pet
+import androidx.compose.material.icons.filled.AccountCircle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PetScreen(viewModel: PetViewModel = viewModel(),
-              onNavigateToVaccines: () -> Unit = {}) {
+fun PetScreen(
+    viewModel: PetViewModel = viewModel(),
+    onNavigateToVaccines: () -> Unit = {},
+    onNavigateToProfile: () -> Unit = {}
+) {
     val pets by viewModel.pets.collectAsState()
     val showAddDialog by viewModel.showAddDialog.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
@@ -40,6 +44,12 @@ fun PetScreen(viewModel: PetViewModel = viewModel(),
                     }
                     IconButton(onClick = onNavigateToVaccines) {
                         Icon(Icons.Filled.Star, contentDescription = "Ver vacunas")
+                    }
+                    IconButton(onClick = {
+                        android.util.Log.d("MediPet", "Navegando a perfil")
+                        onNavigateToProfile()
+                    }) {
+                        Icon(Icons.Filled.AccountCircle, contentDescription = "Perfil")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

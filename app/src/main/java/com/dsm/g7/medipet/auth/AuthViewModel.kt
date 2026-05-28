@@ -33,8 +33,6 @@ class AuthViewModel : ViewModel() {
         auth.addAuthStateListener { firebaseAuth ->
             _user.value = firebaseAuth.currentUser
         }
-        // Cerrar sesión al iniciar la app
-        auth.signOut()
     }
 
     fun signUp(email: String, password: String) {
@@ -95,6 +93,14 @@ class AuthViewModel : ViewModel() {
                 _errorMessage.value = e.message
             }
         }
+    }
+
+    fun updateDisplayName(name: String) {
+        val user = auth.currentUser ?: return
+        val profileUpdates = com.google.firebase.auth.userProfileChangeRequest {
+            displayName = name
+        }
+        user.updateProfile(profileUpdates)
     }
 
     fun logout() {
