@@ -1,56 +1,57 @@
 package com.dsm.g7.medipet.ui.vaccines
 
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.rememberDatePickerState
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import android.app.Application
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.material.icons.filled.ArrowBack
-
-// Modelo temporal visual (Luego lo reemplazaremos con tu Entidad de Room)
-data class VaccineUI(val id: Int, val name: String, val type: String, val vetName: String, val date: String, val isApplied: Boolean)
+import com.dsm.g7.medipet.data.local.Vaccine
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VaccineScreen(viewModel: VaccineViewModel = viewModel(),
-                  onNavigateBack: () -> Unit = {}) {
-    // Estado temporal para simular las vacunas
-    var vaccines by remember {
-        mutableStateOf(
-            listOf(
-                VaccineUI(1, "Antirrábica", "Anual", "Dr. Pérez", "15/06/2026", false),
-                VaccineUI(2, "Parvovirus", "Cachorro", "Dra. Gómez", "20/05/2026", true)
-            )
-        )
+fun VaccineScreen(
+    petId: String = "",
+    isReadOnly: Boolean = false,
+    onNavigateBack: () -> Unit = {}
+) {
+    val context = LocalContext.current
+    val factory = remember(petId) {
+        VaccineViewModelFactory(context.applicationContext as Application, petId)
     }
+    val viewModel: VaccineViewModel = viewModel(factory = factory)
 
-    // Estado para mostrar u ocultar el diálogo de agregar vacuna
+    val vaccines by viewModel.vaccines.collectAsState()
+    val petNames by viewModel.petNames.collectAsState()
+    val isAllMode = viewModel.isAllPetsMode
+
     var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Calendario de Vacunas", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        if (isAllMode) "Todas las Vacunas" else "Calendario de Vacunas",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = "Regresar"
-                        )
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Regresar")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -60,48 +61,78 @@ fun VaccineScreen(viewModel: VaccineViewModel = viewModel(),
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "Agregar Vacuna")
+            if (!isAllMode && !isReadOnly) {
+                FloatingActionButton(
+                    onClick = { showAddDialog = true },
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Agregar Vacuna")
+                }
             }
         }
     ) { paddingValues ->
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
+            if (isAllMode) {
+                Text(
+                    "Vacunas de todas tus mascotas",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
             if (vaccines.isEmpty()) {
-                Text("No hay vacunas registradas.", modifier = Modifier.align(Alignment.CenterHorizontally))
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Filled.Vaccines,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "No hay vacunas registradas",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (!isAllMode && !isReadOnly) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "Toca el botón + para agregar una",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
             } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(vaccines) { vaccine ->
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(vaccines, key = { it.id }) { vaccine ->
                         VaccineCard(
                             vaccine = vaccine,
-                            onToggleApplied = {
-                                // Lógica temporal para cambiar el estado visual
-                                vaccines = vaccines.map {
-                                    if (it.id == vaccine.id) it.copy(isApplied = !it.isApplied) else it
-                                }
-                            }
+                            petName = if (isAllMode) petNames[vaccine.petId] else null,
+                            isReadOnly = isReadOnly,
+                            onToggleApplied = { viewModel.toggleVaccineApplied(vaccine) },
+                            onDelete = if (!isAllMode && !isReadOnly) {
+                                { viewModel.deleteVaccine(vaccine) }
+                            } else null
                         )
                     }
                 }
             }
         }
 
-        // Mostrar el diálogo si el estado es true
-        if (showAddDialog) {
+        if (showAddDialog && !isReadOnly) {
             AddVaccineDialog(
                 onDismiss = { showAddDialog = false },
-                onAdd = { newVaccine ->
-                    vaccines = vaccines + newVaccine
+                onAdd = { name, type, vetName, dateMillis ->
+                    viewModel.addVaccine(name, type, vetName, dateMillis)
                     showAddDialog = false
                 }
             )
@@ -110,13 +141,23 @@ fun VaccineScreen(viewModel: VaccineViewModel = viewModel(),
 }
 
 @Composable
-fun VaccineCard(vaccine: VaccineUI, onToggleApplied: () -> Unit) {
+fun VaccineCard(
+    vaccine: Vaccine,
+    petName: String? = null,
+    isReadOnly: Boolean = false,
+    onToggleApplied: () -> Unit,
+    onDelete: (() -> Unit)? = null
+) {
+    val formatter = remember {
+        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).apply {
+            timeZone = java.util.TimeZone.getTimeZone("UTC")
+        }
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Row(
             modifier = Modifier
@@ -126,19 +167,93 @@ fun VaccineCard(vaccine: VaccineUI, onToggleApplied: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = vaccine.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    text = vaccine.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(text = "Tipo: ${vaccine.type}", style = MaterialTheme.typography.bodyMedium)
-                Text(text = "Veterinario: ${vaccine.vetName}", style = MaterialTheme.typography.bodyMedium)
-                Text(text = "Fecha: ${vaccine.date}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                if (vaccine.type.isNotBlank()) {
+                    Text("Tipo: ${vaccine.type}", style = MaterialTheme.typography.bodySmall)
+                }
+                if (vaccine.vetName.isNotBlank()) {
+                    Text("Veterinario: ${vaccine.vetName}", style = MaterialTheme.typography.bodySmall)
+                }
+                // Compare calendar days (not raw timestamps) to avoid UTC-midnight vs local timezone bugs
+                val todayLocalStart = remember {
+                    Calendar.getInstance().apply {
+                        set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                        set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                    }.timeInMillis
+                }
+                val tomorrowLocalStart = todayLocalStart + 86_400_000L
+                val vaccineDayLocalStart = remember(vaccine.dateMillis) {
+                    val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                        timeInMillis = vaccine.dateMillis
+                    }
+                    Calendar.getInstance().apply {
+                        set(utcCal.get(Calendar.YEAR), utcCal.get(Calendar.MONTH),
+                            utcCal.get(Calendar.DAY_OF_MONTH), 0, 0, 0)
+                        set(Calendar.MILLISECOND, 0)
+                    }.timeInMillis
+                }
+                val dateColor = when {
+                    !vaccine.isApplied && vaccineDayLocalStart < todayLocalStart -> MaterialTheme.colorScheme.error
+                    !vaccine.isApplied && vaccineDayLocalStart <= tomorrowLocalStart -> MaterialTheme.colorScheme.tertiary
+                    else -> MaterialTheme.colorScheme.primary
+                }
+                Text(
+                    "Fecha: ${formatter.format(Date(vaccine.dateMillis))}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = dateColor
+                )
+                if (!vaccine.isApplied) {
+                    val (badgeText, badgeColor) = when {
+                        vaccineDayLocalStart < todayLocalStart -> "Vencida" to MaterialTheme.colorScheme.error
+                        vaccineDayLocalStart <= tomorrowLocalStart -> "Próxima" to MaterialTheme.colorScheme.tertiary
+                        else -> null to null
+                    }
+                    if (badgeText != null && badgeColor != null) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        SuggestionChip(
+                            onClick = {},
+                            label = { Text(badgeText, style = MaterialTheme.typography.labelSmall) },
+                            colors = SuggestionChipDefaults.suggestionChipColors(
+                                containerColor = badgeColor.copy(alpha = 0.15f),
+                                labelColor = badgeColor
+                            ),
+                            modifier = Modifier.height(24.dp)
+                        )
+                    }
+                }
+                if (petName != null) {
+                    Text(
+                        "Mascota: $petName",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
             }
-
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Aplicada", style = MaterialTheme.typography.labelSmall)
                 Checkbox(
                     checked = vaccine.isApplied,
-                    onCheckedChange = { onToggleApplied() }
+                    onCheckedChange = { onToggleApplied() },
+                    enabled = !isReadOnly
                 )
+                if (onDelete != null) {
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.Delete,
+                            contentDescription = "Eliminar",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -146,84 +261,75 @@ fun VaccineCard(vaccine: VaccineUI, onToggleApplied: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddVaccineDialog(onDismiss: () -> Unit, onAdd: (VaccineUI) -> Unit) {
+fun AddVaccineDialog(
+    onDismiss: () -> Unit,
+    onAdd: (name: String, type: String, vetName: String, dateMillis: Long) -> Unit
+) {
     var name by remember { mutableStateOf("") }
     var type by remember { mutableStateOf("") }
     var vetName by remember { mutableStateOf("") }
-
-    // Variables para el control de la fecha
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
-    var selectedDateText by remember { mutableStateOf("Seleccionar Fecha") }
+    val dateFormatter = remember {
+        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).apply {
+            timeZone = java.util.TimeZone.getTimeZone("UTC")
+        }
+    }
 
-    // Si showDatePicker es true, mostramos el calendario flotante
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
-                TextButton(onClick = {
-                    // Convertimos los milisegundos seleccionados a formato dd/MM/yyyy
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                        selectedDateText = formatter.format(Date(millis))
-                    }
-                    showDatePicker = false
-                }) {
-                    Text("Aceptar")
-                }
+                TextButton(onClick = { showDatePicker = false }) { Text("Aceptar") }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancelar")
-                }
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancelar") }
             }
-        ) {
-            // Este es el componente visual del calendario de Material 3
-            DatePicker(state = datePickerState)
-        }
+        ) { DatePicker(state = datePickerState) }
     }
 
-    // El diálogo original del formulario
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Registrar Vacuna") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nombre de vacuna") })
-                OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text("Tipo (ej. Anual)") })
-                OutlinedTextField(value = vetName, onValueChange = { vetName = it }, label = { Text("Veterinario") })
-
-                // Botón que abre el calendario
+                OutlinedTextField(
+                    value = name, onValueChange = { name = it },
+                    label = { Text("Nombre de vacuna") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = type, onValueChange = { type = it },
+                    label = { Text("Tipo (ej. Anual)") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = vetName, onValueChange = { vetName = it },
+                    label = { Text("Veterinario") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth()
+                )
                 OutlinedButton(
                     onClick = { showDatePicker = true },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(selectedDateText)
+                    Text(
+                        datePickerState.selectedDateMillis
+                            ?.let { dateFormatter.format(Date(it)) }
+                            ?: "Seleccionar Fecha"
+                    )
                 }
             }
         },
         confirmButton = {
             Button(onClick = {
-                if (name.isNotBlank() && selectedDateText != "Seleccionar Fecha") {
-                    // LLamamos a la función del ViewModel en vez del método anterior
-                    onAdd(VaccineUI(0, name, type, vetName, selectedDateText, false))
+                val millis = datePickerState.selectedDateMillis
+                if (name.isNotBlank() && millis != null) {
+                    onAdd(name, type, vetName, millis)
                 }
-            }) {
-                Text("Guardar")
-            }
+            }) { Text("Guardar") }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar")
-            }
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
         }
     )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PreviewVaccineScreen() {
-    MaterialTheme {
-        VaccineScreen()
-    }
 }
