@@ -8,6 +8,8 @@ import com.dsm.g7.medipet.BuildConfig
 import com.dsm.g7.medipet.data.local.AppDatabase
 import com.dsm.g7.medipet.data.local.ChatMessage
 import com.dsm.g7.medipet.data.local.Pet
+import com.google.ai.client.generativeai.GenerativeModel
+import com.google.ai.client.generativeai.type.*
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -44,15 +46,31 @@ class ChatViewModel(app: Application, initialPetId: String) : AndroidViewModel(a
     private val _isTyping      = MutableStateFlow(false)
     val isTyping: StateFlow<Boolean> = _isTyping.asStateFlow()
 
-    // Keep for ChatScreen compatibility — always empty (no streaming in REST mode)
-    val streamingText: StateFlow<String> = MutableStateFlow("").asStateFlow()
+    private val _streamingText = MutableStateFlow("")
+    val streamingText: StateFlow<String> = _streamingText.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    // ── Cached prompts (rebuilt when pet changes) ─────────────────────────────
-    private var cachedSystemPrompt = ""
-    private var cachedGreeting     = ""
+    // ── Gemini SDK ────────────────────────────────────────────────────────────
+    private val model = GenerativeModel(
+        modelName = "gemini-2.5-flash",
+        apiKey    = BuildConfig.GEMINI_API_KEY,
+        generationConfig = generationConfig {
+            temperature     = 0.7f
+            topK            = 40
+            topP            = 0.95f
+            maxOutputTokens = 1024
+        },
+        safetySettings = listOf(
+            SafetySetting(HarmCategory.HARASSMENT,        BlockThreshold.MEDIUM_AND_ABOVE),
+            SafetySetting(HarmCategory.HATE_SPEECH,       BlockThreshold.MEDIUM_AND_ABOVE),
+            SafetySetting(HarmCategory.SEXUALLY_EXPLICIT, BlockThreshold.MEDIUM_AND_ABOVE),
+            SafetySetting(HarmCategory.DANGEROUS_CONTENT, BlockThreshold.MEDIUM_AND_ABOVE)
+        )
+    )
+
+    private var chatSession: com.google.ai.client.generativeai.Chat? = null
 
     init {
         viewModelScope.launch { initSession() }
@@ -62,41 +80,50 @@ class ChatViewModel(app: Application, initialPetId: String) : AndroidViewModel(a
     fun selectPet(petId: String) {
         if (petId == _currentPetId.value) return
         _currentPetId.value = petId
+        chatSession = null
         viewModelScope.launch { initSession() }
     }
 
+    // ── Session init ──────────────────────────────────────────────────────────
     private suspend fun initSession() {
-        cachedSystemPrompt = buildSystemPrompt(_currentPetId.value)
-        cachedGreeting     = buildGreeting(_currentPetId.value)
+        val systemPrompt = buildSystemPrompt(_currentPetId.value)
+        val greeting     = buildGreeting(_currentPetId.value)
+        val history      = chatDao.getMessagesOnce(_currentPetId.value, ownerUid)
+
+        val geminiHistory = buildList {
+            add(content(role = "user")  { text(systemPrompt) })
+            add(content(role = "model") { text(greeting) })
+            history.forEach { msg ->
+                add(content(role = msg.role) { text(msg.content) })
+            }
+        }
+        chatSession = model.startChat(geminiHistory)
     }
 
-    // ── Send message via REST API (free tier, no Firebase billing) ────────────
+    // ── Send message ──────────────────────────────────────────────────────────
     fun sendMessage(text: String) {
         if (text.isBlank() || _isTyping.value) return
-        val petId = _currentPetId.value
+        val session = chatSession ?: return
+        val petId   = _currentPetId.value
 
         viewModelScope.launch {
             chatDao.insert(ChatMessage(petId = petId, ownerUid = ownerUid, role = "user", content = text))
-            _isTyping.value = true
+            _isTyping.value      = true
+            _streamingText.value = ""
 
             try {
-                // Build full conversation: system context + history + new user message
-                val history = chatDao.getMessagesOnce(petId, ownerUid)
-                val contents = buildList {
-                    add("user"  to cachedSystemPrompt)
-                    add("model" to cachedGreeting)
-                    history.forEach { add(it.role to it.content) }
+                session.sendMessageStream(text).collect { chunk ->
+                    _streamingText.value += chunk.text ?: ""
                 }
-
-                val response = GeminiRestClient.chat(BuildConfig.GEMINI_API_KEY, contents)
-
-                if (response.isNotBlank()) {
-                    chatDao.insert(ChatMessage(petId = petId, ownerUid = ownerUid, role = "model", content = response))
+                val finalText = _streamingText.value
+                if (finalText.isNotBlank()) {
+                    chatDao.insert(ChatMessage(petId = petId, ownerUid = ownerUid, role = "model", content = finalText))
                 }
             } catch (e: Exception) {
                 _error.value = e.message ?: e.javaClass.simpleName
             } finally {
-                _isTyping.value = false
+                _streamingText.value = ""
+                _isTyping.value      = false
             }
         }
     }

@@ -7,8 +7,8 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-val localProps = Properties().also { props ->
-    val f = rootProject.file("local.properties")
+val apiKeyProps = Properties().also { props ->
+    val f = rootProject.file("apikeys.properties")
     if (f.exists()) f.inputStream().use { props.load(it) }
 }
 
@@ -23,7 +23,7 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "GEMINI_API_KEY", "\"${localProps.getProperty("GEMINI_API_KEY", "")}\"")
+        buildConfigField("String", "GEMINI_API_KEY", "\"${apiKeyProps.getProperty("GEMINI_API_KEY", "")}\"")
     }
 
     buildTypes {
@@ -93,6 +93,9 @@ dependencies {
 
     // Coil image loading
     implementation(libs.coil.compose)
+
+    // Google Generative AI (Gemini)
+    implementation(libs.generativeai)
 
     // Tests
     testImplementation(libs.junit)
