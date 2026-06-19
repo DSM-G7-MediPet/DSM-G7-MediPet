@@ -58,10 +58,11 @@ object GeminiRestClient {
             })
         }.toString().toByteArray(Charsets.UTF_8)
 
-        val url = URL("$BASE/$MODEL:generateContent?key=$apiKey")
+        val url = URL("$BASE/$MODEL:generateContent")
         val conn = (url.openConnection() as HttpURLConnection).apply {
             requestMethod    = "POST"
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            setRequestProperty("x-goog-api-key", apiKey)
             doOutput         = true
             connectTimeout   = 30_000
             readTimeout      = 60_000
