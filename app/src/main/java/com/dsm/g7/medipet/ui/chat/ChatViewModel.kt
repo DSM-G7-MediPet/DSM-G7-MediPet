@@ -4,18 +4,21 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.dsm.g7.medipet.BuildConfig
 import com.dsm.g7.medipet.data.local.AppDatabase
 import com.dsm.g7.medipet.data.local.ChatMessage
-import com.google.ai.client.generativeai.GenerativeModel
-import com.google.ai.client.generativeai.type.*
+import com.dsm.g7.medipet.data.local.Pet
+import com.google.firebase.Firebase
+import com.google.firebase.ai.ai
+import com.google.firebase.ai.type.*
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-class ChatViewModel(app: Application, val petId: String) : AndroidViewModel(app) {
+@OptIn(ExperimentalCoroutinesApi::class)
+class ChatViewModel(app: Application, initialPetId: String) : AndroidViewModel(app) {
 
     private val db         = AppDatabase.getDatabase(app)
     private val chatDao    = db.chatMessageDao()
@@ -24,12 +27,22 @@ class ChatViewModel(app: Application, val petId: String) : AndroidViewModel(app)
     private val recordDao  = db.medicalRecordDao()
     private val ownerUid: String get() = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
-    val messages: StateFlow<List<ChatMessage>> = chatDao.getMessages(petId, ownerUid)
+    // ── Selected pet ─────────────────────────────────────────────────────────
+    private val _currentPetId = MutableStateFlow(initialPetId)
+    val currentPetId: StateFlow<String> = _currentPetId.asStateFlow()
+
+    val allPets: StateFlow<List<Pet>> = petDao.getPetsForOwner(ownerUid)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val pet = petDao.observePetById(petId)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val pet: StateFlow<Pet?> = _currentPetId.flatMapLatest { id ->
+        petDao.observePetById(id)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    val messages: StateFlow<List<ChatMessage>> = _currentPetId.flatMapLatest { id ->
+        chatDao.getMessages(id, ownerUid)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // ── UI state ─────────────────────────────────────────────────────────────
     private val _isTyping      = MutableStateFlow(false)
     val isTyping: StateFlow<Boolean> = _isTyping.asStateFlow()
 
@@ -39,33 +52,42 @@ class ChatViewModel(app: Application, val petId: String) : AndroidViewModel(app)
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    private val model = GenerativeModel(
+    // ── Firebase AI Logic model (Google AI backend — free tier) ───────────────
+    private val model = Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
         modelName = "gemini-2.5-flash",
-        apiKey    = BuildConfig.GEMINI_API_KEY,
         generationConfig = generationConfig {
-            temperature   = 0.7f
-            topK          = 40
-            topP          = 0.95f
+            temperature     = 0.7f
+            topK            = 40
+            topP            = 0.95f
             maxOutputTokens = 1024
         },
         safetySettings = listOf(
-            SafetySetting(HarmCategory.HARASSMENT,        BlockThreshold.MEDIUM_AND_ABOVE),
-            SafetySetting(HarmCategory.HATE_SPEECH,       BlockThreshold.MEDIUM_AND_ABOVE),
-            SafetySetting(HarmCategory.SEXUALLY_EXPLICIT, BlockThreshold.MEDIUM_AND_ABOVE),
-            SafetySetting(HarmCategory.DANGEROUS_CONTENT, BlockThreshold.MEDIUM_AND_ABOVE)
+            SafetySetting(HarmCategory.HARASSMENT,        HarmBlockThreshold.MEDIUM_AND_ABOVE),
+            SafetySetting(HarmCategory.HATE_SPEECH,       HarmBlockThreshold.MEDIUM_AND_ABOVE),
+            SafetySetting(HarmCategory.SEXUALLY_EXPLICIT, HarmBlockThreshold.MEDIUM_AND_ABOVE),
+            SafetySetting(HarmCategory.DANGEROUS_CONTENT, HarmBlockThreshold.MEDIUM_AND_ABOVE)
         )
     )
 
-    private var chatSession: com.google.ai.client.generativeai.Chat? = null
+    private var chatSession: com.google.firebase.ai.Chat? = null
 
     init {
         viewModelScope.launch { initSession() }
     }
 
+    // ── Pet switching ─────────────────────────────────────────────────────────
+    fun selectPet(petId: String) {
+        if (petId == _currentPetId.value) return
+        _currentPetId.value = petId
+        chatSession = null
+        viewModelScope.launch { initSession() }
+    }
+
+    // ── Session init ──────────────────────────────────────────────────────────
     private suspend fun initSession() {
-        val systemPrompt = buildSystemPrompt()
-        val greeting     = buildGreeting()
-        val history      = chatDao.getMessagesOnce(petId, ownerUid)
+        val systemPrompt = buildSystemPrompt(_currentPetId.value)
+        val greeting     = buildGreeting(_currentPetId.value)
+        val history      = chatDao.getMessagesOnce(_currentPetId.value, ownerUid)
 
         val geminiHistory = buildList {
             add(content(role = "user")  { text(systemPrompt) })
@@ -78,9 +100,11 @@ class ChatViewModel(app: Application, val petId: String) : AndroidViewModel(app)
         chatSession = model.startChat(geminiHistory)
     }
 
+    // ── Send message ──────────────────────────────────────────────────────────
     fun sendMessage(text: String) {
         if (text.isBlank() || _isTyping.value) return
         val session = chatSession ?: return
+        val petId   = _currentPetId.value
 
         viewModelScope.launch {
             chatDao.insert(ChatMessage(petId = petId, ownerUid = ownerUid, role = "user", content = text))
@@ -97,7 +121,7 @@ class ChatViewModel(app: Application, val petId: String) : AndroidViewModel(app)
                     chatDao.insert(ChatMessage(petId = petId, ownerUid = ownerUid, role = "model", content = finalText))
                 }
             } catch (e: Exception) {
-                _error.value = "No se pudo conectar con el asistente. Verifica tu conexión."
+                _error.value = e.message ?: e.javaClass.simpleName
             } finally {
                 _streamingText.value = ""
                 _isTyping.value      = false
@@ -107,27 +131,26 @@ class ChatViewModel(app: Application, val petId: String) : AndroidViewModel(app)
 
     fun clearHistory() {
         viewModelScope.launch {
-            chatDao.deleteForPet(petId, ownerUid)
+            chatDao.deleteForPet(_currentPetId.value, ownerUid)
             initSession()
         }
     }
 
     fun clearError() { _error.value = null }
 
-    private suspend fun buildSystemPrompt(): String {
-        val dateFmt     = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-        val currentPet  = petDao.getPetById(petId)
-        val vaccines    = vaccineDao.getVaccinesForPet(petId).first()
-        val lastRecord  = recordDao.getRecordsForPet(petId).first().firstOrNull()
-        val now         = System.currentTimeMillis()
+    // ── Prompts ───────────────────────────────────────────────────────────────
+    private suspend fun buildSystemPrompt(petId: String): String {
+        val dateFmt    = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        val currentPet = petDao.getPetById(petId) ?: return defaultPrompt()
+        val vaccines   = vaccineDao.getVaccinesForPet(petId).first()
+        val lastRecord = recordDao.getRecordsForPet(petId).first().firstOrNull()
+        val now        = System.currentTimeMillis()
 
-        if (currentPet == null) return defaultPrompt()
-
-        val applied  = vaccines.filter { it.isApplied }.joinToString { it.name }.ifBlank { "ninguna registrada" }
-        val pending  = vaccines.filter { !it.isApplied }.joinToString {
+        val applied = vaccines.filter { it.isApplied }.joinToString { it.name }.ifBlank { "ninguna registrada" }
+        val pending = vaccines.filter { !it.isApplied }.joinToString {
             "${it.name} (${dateFmt.format(Date(it.dateMillis))})"
         }.ifBlank { "al día" }
-        val overdue  = vaccines.any { !it.isApplied && it.dateMillis < now }
+        val overdue = vaccines.any { !it.isApplied && it.dateMillis < now }
 
         return """
 Eres un asistente veterinario en la app MediPet, amable, claro y profesional.
@@ -147,7 +170,7 @@ Instrucciones:
         """.trimIndent()
     }
 
-    private suspend fun buildGreeting(): String {
+    private suspend fun buildGreeting(petId: String): String {
         val name = petDao.getPetById(petId)?.name ?: "tu mascota"
         return "¡Hola! 🐾 Soy tu asistente veterinario en MediPet. Estoy aquí para ayudarte con preguntas sobre la salud de $name. ¿En qué puedo ayudarte hoy?"
     }
