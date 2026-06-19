@@ -310,18 +310,7 @@ fun MedicalRecordCard(record: MedicalRecord, onDelete: (() -> Unit)? = null) {
 
                     if (record.voiceNoteUrl.isNotBlank()) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable {
-                                try {
-                                    MediaPlayer.create(context, Uri.parse(record.voiceNoteUrl))?.start()
-                                } catch (_: Exception) {}
-                            }
-                        ) {
-                            Icon(Icons.Filled.PlayArrow, contentDescription = "Reproducir", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.secondary)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Reproducir nota de voz", style = MaterialTheme.typography.labelSmall)
-                        }
+                        AudioPlayButton(url = record.voiceNoteUrl)
                     }
 
                     if (record.photoUri.isNotBlank() && record.photoUri.startsWith("https")) {
@@ -552,6 +541,60 @@ fun AddMedicalRecordDialog(
             }) { Text("Cancelar") }
         }
     )
+}
+
+@Composable
+fun AudioPlayButton(url: String) {
+    val context = LocalContext.current
+    var isPlaying by remember { mutableStateOf(false) }
+    var player    by remember { mutableStateOf<MediaPlayer?>(null) }
+
+    DisposableEffect(url) {
+        onDispose {
+            player?.stop()
+            player?.release()
+            player = null
+        }
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.clickable {
+            if (isPlaying) {
+                player?.stop()
+                player?.release()
+                player = null
+                isPlaying = false
+            } else {
+                try {
+                    val mp = MediaPlayer.create(context, Uri.parse(url))
+                    mp?.setOnCompletionListener {
+                        isPlaying = false
+                        it.release()
+                        player = null
+                    }
+                    mp?.start()
+                    player = mp
+                    isPlaying = mp != null
+                } catch (_: Exception) {
+                    isPlaying = false
+                }
+            }
+        }
+    ) {
+        Icon(
+            imageVector = if (isPlaying) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+            contentDescription = if (isPlaying) "Detener" else "Reproducir",
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.secondary
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = if (isPlaying) "Reproduciendo..." else "Reproducir nota de voz",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.secondary
+        )
+    }
 }
 
 @Composable

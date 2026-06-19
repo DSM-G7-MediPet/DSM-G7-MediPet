@@ -2,9 +2,11 @@ package com.dsm.g7.medipet.ui.appointments
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -192,11 +194,7 @@ fun AppointmentCard(
                         color = MaterialTheme.colorScheme.primary
                     )
                     if (appointment.voiceNoteUrl.isNotBlank()) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.Mic, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.secondary)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Nota de voz", style = MaterialTheme.typography.labelSmall)
-                        }
+                        AppointmentAudioButton(url = appointment.voiceNoteUrl)
                     }
                     if (appointment.photoUri.isNotBlank()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -221,6 +219,60 @@ fun AppointmentCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AppointmentAudioButton(url: String) {
+    val context = LocalContext.current
+    var isPlaying by remember { mutableStateOf(false) }
+    var player    by remember { mutableStateOf<MediaPlayer?>(null) }
+
+    DisposableEffect(url) {
+        onDispose {
+            player?.stop()
+            player?.release()
+            player = null
+        }
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.clickable {
+            if (isPlaying) {
+                player?.stop()
+                player?.release()
+                player = null
+                isPlaying = false
+            } else {
+                try {
+                    val mp = MediaPlayer.create(context, Uri.parse(url))
+                    mp?.setOnCompletionListener {
+                        isPlaying = false
+                        it.release()
+                        player = null
+                    }
+                    mp?.start()
+                    player = mp
+                    isPlaying = mp != null
+                } catch (_: Exception) {
+                    isPlaying = false
+                }
+            }
+        }
+    ) {
+        Icon(
+            imageVector = if (isPlaying) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+            contentDescription = if (isPlaying) "Detener" else "Reproducir",
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.secondary
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = if (isPlaying) "Reproduciendo..." else "Nota de voz",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.secondary
+        )
     }
 }
 

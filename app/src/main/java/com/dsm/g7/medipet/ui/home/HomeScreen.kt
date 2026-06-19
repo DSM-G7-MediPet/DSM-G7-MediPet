@@ -23,7 +23,8 @@ fun HomeScreen(
     viewModel: HomeViewModel = viewModel(),
     onNavigateToPets: () -> Unit = {},
     onNavigateToAppointments: () -> Unit = {},
-    onNavigateToVaccines: () -> Unit = {}
+    onNavigateToVaccines: () -> Unit = {},
+    onNavigateToDashboard: () -> Unit = {}
 ) {
     val pets by viewModel.pets.collectAsState()
     val todayAppointments by viewModel.todayAppointments.collectAsState()
@@ -34,6 +35,11 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Inicio", fontWeight = FontWeight.Bold) },
+                actions = {
+                    IconButton(onClick = onNavigateToDashboard) {
+                        Icon(Icons.Filled.BarChart, contentDescription = "Dashboard de salud")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer

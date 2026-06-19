@@ -4,11 +4,15 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.dsm.g7.medipet.data.local.Appointment
 import com.dsm.g7.medipet.data.local.AppDatabase
 import com.dsm.g7.medipet.data.local.AppointmentStatus
 import com.dsm.g7.medipet.data.local.Pet
 import com.dsm.g7.medipet.util.StorageUploader
+import com.dsm.g7.medipet.worker.AppointmentReminderWorker
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
@@ -18,6 +22,7 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.TimeZone
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 
 class AppointmentViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -119,6 +124,17 @@ class AppointmentViewModel(app: Application) : AndroidViewModel(app) {
             voiceNoteUrl = voiceNoteUrl,
             firestoreId = firestoreId
         )
+        // Schedule 1-hour reminder notification
+        val delay = dateMillis - System.currentTimeMillis() - TimeUnit.HOURS.toMillis(1)
+        if (delay > 0) {
+            val workData = workDataOf("petName" to petName, "reason" to reason, "vetName" to vetName)
+            val request = OneTimeWorkRequestBuilder<AppointmentReminderWorker>()
+                .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                .setInputData(workData)
+                .build()
+            WorkManager.getInstance(getApplication()).enqueue(request)
+        }
+
         viewModelScope.launch {
             val roomId = appointmentDao.insertAppointment(appointment)
             pushToFirestore(appointment)

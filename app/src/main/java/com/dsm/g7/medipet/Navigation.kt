@@ -27,6 +27,7 @@ import com.dsm.g7.medipet.auth.ProfileScreen
 import com.dsm.g7.medipet.data.local.UserRole
 import com.dsm.g7.medipet.ui.appointments.AppointmentScreen
 import com.dsm.g7.medipet.ui.home.HomeScreen
+import com.dsm.g7.medipet.ui.home.OwnerDashboardScreen
 import com.dsm.g7.medipet.ui.medical.MedicalRecordScreen
 import com.dsm.g7.medipet.ui.onboarding.OnboardingScreen
 import com.dsm.g7.medipet.ui.pets.PetDetailScreen
@@ -51,6 +52,7 @@ object Routes {
     const val PROFILE = "profile"
     const val VET_DASHBOARD = "vet_dashboard"
     const val VET_PATIENTS = "vet_patients"
+    const val DASHBOARD    = "owner_dashboard"
 }
 
 private data class BottomNavItem(
@@ -172,10 +174,15 @@ fun MediPetNavigation(authViewModel: AuthViewModel = viewModel()) {
 
             composable(Routes.HOME) {
                 HomeScreen(
-                    onNavigateToPets = { navController.navigate(Routes.PETS) },
+                    onNavigateToPets         = { navController.navigate(Routes.PETS) },
                     onNavigateToAppointments = { navController.navigate(Routes.APPOINTMENTS) },
-                    onNavigateToVaccines = { navController.navigate("${Routes.VACCINES}/all") }
+                    onNavigateToVaccines     = { navController.navigate("${Routes.VACCINES}/all") },
+                    onNavigateToDashboard    = { navController.navigate(Routes.DASHBOARD) }
                 )
+            }
+
+            composable(Routes.DASHBOARD) {
+                OwnerDashboardScreen(onNavigateBack = { navController.popBackStack() })
             }
 
             composable(Routes.VET_HOME) {
