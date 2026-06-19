@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -24,7 +25,8 @@ fun HomeScreen(
     onNavigateToPets: () -> Unit = {},
     onNavigateToAppointments: () -> Unit = {},
     onNavigateToVaccines: () -> Unit = {},
-    onNavigateToDashboard: () -> Unit = {}
+    onNavigateToDashboard: () -> Unit = {},
+    onNavigateToChat: (petId: String) -> Unit = {}
 ) {
     val pets by viewModel.pets.collectAsState()
     val todayAppointments by viewModel.todayAppointments.collectAsState()
@@ -120,6 +122,29 @@ fun HomeScreen(
                         icon = Icons.Filled.Vaccines,
                         onClick = onNavigateToVaccines
                     )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                // Chat IA — full width card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick  = { onNavigateToChat(pets.firstOrNull()?.id ?: "") },
+                    colors   = CardDefaults.cardColors(containerColor = Color(0xFF0D6E6E))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(Icons.Filled.SmartToy, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                        Column {
+                            Text("Consultar al Veterinario IA", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Gemini 2.5 Flash · disponible 24/7", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.8f))
+                        }
+                        Spacer(Modifier.weight(1f))
+                        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = Color.White)
+                    }
                 }
             }
 

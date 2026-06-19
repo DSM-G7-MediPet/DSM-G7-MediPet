@@ -15,8 +15,8 @@ class Converters {
 }
 
 @Database(
-    entities = [Pet::class, Vaccine::class, Appointment::class, MedicalRecord::class, WeightRecord::class],
-    version = 3,
+    entities = [Pet::class, Vaccine::class, Appointment::class, MedicalRecord::class, WeightRecord::class, ChatMessage::class],
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -26,6 +26,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun appointmentDao(): AppointmentDao
     abstract fun medicalRecordDao(): MedicalRecordDao
     abstract fun weightRecordDao(): WeightRecordDao
+    abstract fun chatMessageDao(): ChatMessageDao
 
     companion object {
         @Volatile
@@ -82,6 +83,20 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `chat_messages` (" +
+                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`petId` TEXT NOT NULL, " +
+                    "`ownerUid` TEXT NOT NULL, " +
+                    "`role` TEXT NOT NULL, " +
+                    "`content` TEXT NOT NULL, " +
+                    "`timestampMillis` INTEGER NOT NULL)"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -89,7 +104,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "medipet_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                     .also { INSTANCE = it }
             }

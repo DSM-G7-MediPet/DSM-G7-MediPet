@@ -26,6 +26,7 @@ import com.dsm.g7.medipet.auth.SignUpScreen
 import com.dsm.g7.medipet.auth.ProfileScreen
 import com.dsm.g7.medipet.data.local.UserRole
 import com.dsm.g7.medipet.ui.appointments.AppointmentScreen
+import com.dsm.g7.medipet.ui.chat.ChatScreen
 import com.dsm.g7.medipet.ui.home.HomeScreen
 import com.dsm.g7.medipet.ui.home.OwnerDashboardScreen
 import com.dsm.g7.medipet.ui.medical.MedicalRecordScreen
@@ -53,6 +54,7 @@ object Routes {
     const val VET_DASHBOARD = "vet_dashboard"
     const val VET_PATIENTS = "vet_patients"
     const val DASHBOARD    = "owner_dashboard"
+    const val CHAT         = "chat"
 }
 
 private data class BottomNavItem(
@@ -177,12 +179,21 @@ fun MediPetNavigation(authViewModel: AuthViewModel = viewModel()) {
                     onNavigateToPets         = { navController.navigate(Routes.PETS) },
                     onNavigateToAppointments = { navController.navigate(Routes.APPOINTMENTS) },
                     onNavigateToVaccines     = { navController.navigate("${Routes.VACCINES}/all") },
-                    onNavigateToDashboard    = { navController.navigate(Routes.DASHBOARD) }
+                    onNavigateToDashboard    = { navController.navigate(Routes.DASHBOARD) },
+                    onNavigateToChat         = { petId -> navController.navigate("${Routes.CHAT}/$petId") }
                 )
             }
 
             composable(Routes.DASHBOARD) {
                 OwnerDashboardScreen(onNavigateBack = { navController.popBackStack() })
+            }
+
+            composable(
+                route     = "${Routes.CHAT}/{petId}",
+                arguments = listOf(navArgument("petId") { type = NavType.StringType })
+            ) { back ->
+                val petId = back.arguments?.getString("petId") ?: ""
+                ChatScreen(petId = petId, onNavigateBack = { navController.popBackStack() })
             }
 
             composable(Routes.VET_HOME) {
