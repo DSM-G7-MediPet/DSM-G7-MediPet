@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dsm.g7.medipet.data.local.ChatMessage
+import com.dsm.g7.medipet.data.local.Pet
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -61,6 +62,8 @@ fun ChatScreen(
     val streamingText by vm.streamingText.collectAsState()
     val error         by vm.error.collectAsState()
     val pet           by vm.pet.collectAsState()
+    val allPets       by vm.allPets.collectAsState()
+    val currentPetId  by vm.currentPetId.collectAsState()
 
     var inputText  by remember { mutableStateOf("") }
     var ttsEnabled by remember { mutableStateOf(false) }
@@ -185,6 +188,28 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Pet selector chips
+            if (allPets.size > 1) {
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(allPets, key = { it.id }) { p ->
+                        FilterChip(
+                            selected = p.id == currentPetId,
+                            onClick  = { vm.selectPet(p.id) },
+                            label    = { Text(p.name) },
+                            leadingIcon = if (p.id == currentPetId) {
+                                { Icon(Icons.Filled.Pets, null, modifier = Modifier.size(16.dp)) }
+                            } else null
+                        )
+                    }
+                }
+                HorizontalDivider()
+            }
+
             // Quick replies — only when chat is empty
             if (messages.isEmpty() && !isTyping) {
                 Column(
