@@ -4,7 +4,11 @@ import android.Manifest
 import android.app.Application
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.ImageDecoder
+import android.os.Build
+import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -17,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -66,6 +71,20 @@ fun BreedClassifierScreen(
         if (!hasCameraPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        val bmp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri)) { decoder, _, _ ->
+                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+        }
+        capturedBitmap = bmp
+        vm.classify(bmp)
+    }
+
     LaunchedEffect(breedSaved) {
         if (breedSaved) onNavigateBack()
     }
@@ -99,6 +118,11 @@ fun BreedClassifierScreen(
                     onCaptureBitmap = { bmp ->
                         capturedBitmap = bmp
                         vm.classify(bmp)
+                    },
+                    onOpenGallery = {
+                        galleryLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
                     }
                 )
             } else {
@@ -219,7 +243,8 @@ private fun BreedResultCard(rank: Int, breed: String, confidence: Float, onAccep
 @Composable
 private fun CameraBreedCapture(
     onCaptureReady: (ImageCapture) -> Unit,
-    onCaptureBitmap: (Bitmap) -> Unit
+    onCaptureBitmap: (Bitmap) -> Unit,
+    onOpenGallery: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -250,28 +275,44 @@ private fun CameraBreedCapture(
             modifier = Modifier.fillMaxSize()
         )
 
-        Button(
-            onClick = {
-                imageCapture?.takePicture(
-                    ContextCompat.getMainExecutor(context),
-                    object : ImageCapture.OnImageCapturedCallback() {
-                        override fun onCaptureSuccess(image: ImageProxy) {
-                            val bmp = image.toBitmap()
-                            image.close()
-                            onCaptureBitmap(bmp)
-                        }
-                        override fun onError(exc: ImageCaptureException) {}
-                    }
-                )
-            },
+        Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp)
-                .size(72.dp),
-            shape = RoundedCornerShape(36.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = TealPrimary)
+                .padding(bottom = 32.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Filled.CameraAlt, contentDescription = "Capturar", modifier = Modifier.size(32.dp))
+            // Botón galería
+            FilledTonalButton(
+                onClick = onOpenGallery,
+                modifier = Modifier.size(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Icon(Icons.Filled.PhotoLibrary, contentDescription = "Galería", modifier = Modifier.size(24.dp))
+            }
+
+            // Botón cámara (principal)
+            Button(
+                onClick = {
+                    imageCapture?.takePicture(
+                        ContextCompat.getMainExecutor(context),
+                        object : ImageCapture.OnImageCapturedCallback() {
+                            override fun onCaptureSuccess(image: ImageProxy) {
+                                val bmp = image.toBitmap()
+                                image.close()
+                                onCaptureBitmap(bmp)
+                            }
+                            override fun onError(exc: ImageCaptureException) {}
+                        }
+                    )
+                },
+                modifier = Modifier.size(72.dp),
+                shape = RoundedCornerShape(36.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = TealPrimary)
+            ) {
+                Icon(Icons.Filled.CameraAlt, contentDescription = "Capturar", modifier = Modifier.size(32.dp))
+            }
         }
     }
 }
