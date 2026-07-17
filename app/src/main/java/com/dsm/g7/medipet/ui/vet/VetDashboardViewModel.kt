@@ -37,7 +37,7 @@ class VetDashboardViewModel : ViewModel() {
                 val cal = Calendar.getInstance()
                 val now = cal.timeInMillis
 
-                // Today (local calendar day)
+                // Cálculo de citas de hoy
                 val todayYear = cal.get(Calendar.YEAR)
                 val todayMonth = cal.get(Calendar.MONTH)
                 val todayDay = cal.get(Calendar.DAY_OF_MONTH)
@@ -50,7 +50,7 @@ class VetDashboardViewModel : ViewModel() {
                     }
                 }
 
-                // By day of week (Mon=0 … Sun=6)
+                // Cálculo de citar por día de semana
                 val byDow = MutableList(7) { 0 }
                 docs.forEach { doc ->
                     val ms = (doc["dateMillis"] as? Long) ?: 0L
@@ -60,7 +60,7 @@ class VetDashboardViewModel : ViewModel() {
                     byDow[idx]++
                 }
 
-                // Weekly attended trend (last 8 weeks)
+                // Cálculo de tendencia semanal
                 val weeklyMs = 7L * 24 * 3600 * 1000
                 val weekTrend = MutableList(8) { 0 }
                 docs.forEach { doc ->

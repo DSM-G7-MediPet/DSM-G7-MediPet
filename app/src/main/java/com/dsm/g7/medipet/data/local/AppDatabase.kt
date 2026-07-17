@@ -15,8 +15,8 @@ class Converters {
 }
 
 @Database(
-    entities = [Pet::class, Vaccine::class, Appointment::class, MedicalRecord::class, WeightRecord::class, ChatMessage::class],
-    version = 4,
+    entities = [Pet::class, Vaccine::class, Appointment::class, MedicalRecord::class, WeightRecord::class, ChatMessage::class, Disease::class],
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -27,6 +27,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun medicalRecordDao(): MedicalRecordDao
     abstract fun weightRecordDao(): WeightRecordDao
     abstract fun chatMessageDao(): ChatMessageDao
+    abstract fun diseaseDao(): DiseaseDao
 
     companion object {
         @Volatile
@@ -97,6 +98,21 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `diseases` (" +
+                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`remoteId` TEXT NOT NULL, " +
+                    "`especie` TEXT NOT NULL, " +
+                    "`nombre` TEXT NOT NULL, " +
+                    "`sintomas` TEXT NOT NULL, " +
+                    "`descripcion` TEXT NOT NULL, " +
+                    "`recomendacion` TEXT NOT NULL)"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -104,7 +120,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "medipet_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                     .also { INSTANCE = it }
             }

@@ -59,7 +59,8 @@ fun PetDetailScreen(
     onNavigateBack: () -> Unit = {},
     onNavigateToVaccines: (petId: String) -> Unit = {},
     onNavigateToMedical: (petId: String) -> Unit = {},
-    onNavigateToAppointments: (petId: String) -> Unit = {}
+    onNavigateToAppointments: (petId: String) -> Unit = {},
+    onNavigateToBreedClassifier: (petId: String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val factory = remember(petId) {
@@ -184,7 +185,8 @@ fun PetDetailScreen(
                         dateFormatter = dateFormatter,
                         onNavigateToVaccines = { onNavigateToVaccines(petId) },
                         onNavigateToMedical = { onNavigateToMedical(petId) },
-                        onNavigateToAppointments = { onNavigateToAppointments(petId) }
+                        onNavigateToAppointments = { onNavigateToAppointments(petId) },
+                        onNavigateToBreedClassifier = { onNavigateToBreedClassifier(petId) }
                     )
                     1 -> StatsTab(
                         weightRecords = weightRecords,
@@ -243,7 +245,8 @@ private fun ProfileTab(
     dateFormatter: SimpleDateFormat,
     onNavigateToVaccines: () -> Unit,
     onNavigateToMedical: () -> Unit,
-    onNavigateToAppointments: () -> Unit
+    onNavigateToAppointments: () -> Unit,
+    onNavigateToBreedClassifier: () -> Unit = {}
 ) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         PetStatChip(Modifier.weight(1f), "Edad",   "${pet?.ageYears ?: 0} años", Icons.Filled.Cake)
@@ -295,6 +298,11 @@ private fun ProfileTab(
             Spacer(Modifier.width(4.dp))
             Text("Citas")
         }
+    }
+    OutlinedButton(onClick = onNavigateToBreedClassifier, modifier = Modifier.fillMaxWidth()) {
+        Icon(Icons.Filled.CameraAlt, null, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(6.dp))
+        Text("Identificar Raza con IA")
     }
 }
 

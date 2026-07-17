@@ -1,4 +1,4 @@
-package com.dsm.g7.medipet.ui.chat
+ package com.dsm.g7.medipet.ui.chat
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -20,11 +20,12 @@ import java.util.*
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChatViewModel(app: Application, initialPetId: String) : AndroidViewModel(app) {
 
-    private val db         = AppDatabase.getDatabase(app)
-    private val chatDao    = db.chatMessageDao()
-    private val petDao     = db.petDao()
-    private val vaccineDao = db.vaccineDao()
-    private val recordDao  = db.medicalRecordDao()
+    private val db          = AppDatabase.getDatabase(app)
+    private val chatDao     = db.chatMessageDao()
+    private val petDao      = db.petDao()
+    private val vaccineDao  = db.vaccineDao()
+    private val recordDao   = db.medicalRecordDao()
+    private val diseaseDao  = db.diseaseDao()
     private val ownerUid: String get() = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
     // ── Selected pet ──────────────────────────────────────────────────────────
@@ -42,7 +43,7 @@ class ChatViewModel(app: Application, initialPetId: String) : AndroidViewModel(a
         chatDao.getMessages(id, ownerUid)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // ── UI state ──────────────────────────────────────────────────────────────
+    // ── UI estados ──────────────────────────────────────────────────────────────
     private val _isTyping      = MutableStateFlow(false)
     val isTyping: StateFlow<Boolean> = _isTyping.asStateFlow()
 
@@ -52,7 +53,7 @@ class ChatViewModel(app: Application, initialPetId: String) : AndroidViewModel(a
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    // ── Gemini SDK ────────────────────────────────────────────────────────────
+    // ── Gemini SDK configuracion ────────────────────────────────────────────────────────────
     private val model = GenerativeModel(
         modelName = "gemini-2.5-flash",
         apiKey    = BuildConfig.GEMINI_API_KEY,
@@ -70,13 +71,14 @@ class ChatViewModel(app: Application, initialPetId: String) : AndroidViewModel(a
         )
     )
 
+    // Inicialición de la sesión de chat
     private var chatSession: com.google.ai.client.generativeai.Chat? = null
 
     init {
         viewModelScope.launch { initSession() }
     }
 
-    // ── Pet switching ─────────────────────────────────────────────────────────
+    // ── Pet cambio ─────────────────────────────────────────────────────────
     fun selectPet(petId: String) {
         if (petId == _currentPetId.value) return
         _currentPetId.value = petId
@@ -127,7 +129,7 @@ class ChatViewModel(app: Application, initialPetId: String) : AndroidViewModel(a
             }
         }
     }
-
+  //u6 --
     fun clearHistory() {
         viewModelScope.launch {
             chatDao.deleteForPet(_currentPetId.value, ownerUid)
@@ -151,13 +153,15 @@ class ChatViewModel(app: Application, initialPetId: String) : AndroidViewModel(a
         }.ifBlank { "al día" }
         val overdue = vaccines.any { !it.isApplied && it.dateMillis < now }
 
+        val diseaseContext = buildDiseaseContext(currentPet.species)
+
         return """
 Eres un asistente veterinario en la app MediPet, amable, claro y profesional.
 
 **Mascota activa:** ${currentPet.name} — ${currentPet.species}, ${currentPet.breed.ifBlank { "raza no registrada" }}, ${currentPet.ageYears} años, ${currentPet.weightKg} kg.
 **Vacunas aplicadas:** $applied
 **Vacunas pendientes:** $pending${if (overdue) " ⚠️ (hay vacunas VENCIDAS)" else ""}
-**Última consulta:** ${lastRecord?.let { "${dateFmt.format(Date(it.dateMillis))} — ${it.diagnosis}" } ?: "sin registro"}
+**Última consulta:** ${lastRecord?.let { "${dateFmt.format(Date(it.dateMillis))} — ${it.diagnosis}" } ?: "sin registro"}$diseaseContext
 
 Instrucciones:
 - Responde SIEMPRE en español.
@@ -166,12 +170,26 @@ Instrucciones:
 - No diagnostiques enfermedades graves; orienta y recomienda visita cuando sea necesario.
 - Respuestas concisas (máximo 3-4 párrafos). Puedes usar emojis ocasionalmente 🐾.
 - Si te preguntan sobre vacunas o historial, usa los datos reales de ${currentPet.name} indicados arriba.
+- Si mencionan síntomas, considera las enfermedades comunes de la especie listadas arriba.
         """.trimIndent()
     }
 
     private suspend fun buildGreeting(petId: String): String {
         val name = petDao.getPetById(petId)?.name ?: "tu mascota"
         return "¡Hola! 🐾 Soy tu asistente veterinario en MediPet. Estoy aquí para ayudarte con preguntas sobre la salud de $name. ¿En qué puedo ayudarte hoy?"
+    }
+
+    private suspend fun buildDiseaseContext(species: String): String {
+        val especie = when {
+            species.contains("perro", ignoreCase = true) || species.contains("dog", ignoreCase = true) -> "perro"
+            species.contains("gato", ignoreCase = true) || species.contains("cat", ignoreCase = true) -> "gato"
+            species.contains("conejo", ignoreCase = true) || species.contains("rabbit", ignoreCase = true) -> "conejo"
+            else -> return ""
+        }
+        val diseases = diseaseDao.getDiseasesForSpeciesLimit(especie, 5)
+        if (diseases.isEmpty()) return ""
+        val list = diseases.joinToString("\n") { d -> "- ${d.nombre}: ${d.sintomas}" }
+        return "\n**Enfermedades comunes en ${species}:**\n$list"
     }
 
     private fun defaultPrompt() = """

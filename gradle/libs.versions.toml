@@ -20,6 +20,7 @@ cameraX = "1.4.1"
 tehras = "0.2.4-alpha"
 coil = "2.7.0"
 generativeai = "0.9.0"
+retrofit = "2.11.0"
 
 [libraries]
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
@@ -68,6 +69,10 @@ tehras-charts = { group = "com.github.tehras", name = "charts", version.ref = "t
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 # Google Generative AI (Gemini)
 generativeai = { group = "com.google.ai.client.generativeai", name = "generativeai", version.ref = "generativeai" }
+# Retrofit + Gson (Disease API)
+retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
+retrofit-gson = { group = "com.squareup.retrofit2", name = "converter-gson", version.ref = "retrofit" }
+kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version = "1.8.1" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

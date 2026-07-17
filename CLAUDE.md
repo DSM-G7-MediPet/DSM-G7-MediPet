@@ -23,6 +23,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 On Windows use `gradlew.bat` instead of `./gradlew`.
 
+### Release APK
+
+**Step 1 — Generate keystore (one-time):**
+```bash
+keytool -genkey -v -keystore keystore/release.keystore -alias medipet -keyalg RSA -keysize 2048 -validity 10000
+```
+
+**Step 2 — Create `keystore.properties` in the project root (add to `.gitignore`):**
+```properties
+storeFile=keystore/release.keystore
+storePassword=YOUR_STORE_PASSWORD
+keyAlias=medipet
+keyPassword=YOUR_KEY_PASSWORD
+```
+
+**Step 3 — Build signed APK:**
+```bash
+./gradlew assembleRelease
+# Output: app/build/outputs/apk/release/app-release.apk
+```
+
+Or build AAB for Play Store:
+```bash
+./gradlew bundleRelease
+# Output: app/build/outputs/bundle/release/app-release.aab
+```
+
 ### KSP version caveat
 Room code generation uses KSP (`com.google.devtools.ksp`). The version in `gradle/libs.versions.toml`
 must match the Kotlin version exactly. If Gradle sync fails with "KSP version mismatch", find the
@@ -116,5 +143,29 @@ mismatch is a leftover from Sprint 1.
 ### WorkManager — vaccine reminders
 
 When `VaccineViewModel.addVaccine()` is called, it enqueues a `OneTimeWorkRequest` for
-`VaccineReminderWorker` with a delay of `vaccineDate - now - 1 day`. The worker itself simply
-posts a local notification; it does not query Room.
+`VaccineReminderWorker` with a delay of `vaccineDate - now - 7 days`. The worker is registered
+with `enqueueUniqueWork("vaccine_reminder_{petId}_{vaccineId}", REPLACE, ...)` so duplicates are
+replaced automatically. When `toggleVaccineApplied` marks a vaccine as applied, the corresponding
+work is cancelled via `cancelUniqueWork`.
+
+### HU10 — Breed Classifier
+
+`BreedClassifierScreen` uses CameraX for photo capture and **ML Kit Image Labeling on-device**
+(`com.google.mlkit:image-labeling:17.0.9`). The model (~2 MB) is bundled in the APK automatically
+— **no external file download required**. Works fully offline.
+
+### HU11 — Disease Catalog
+
+**Backend** lives in `/backend` (FastAPI, Python 3.12+). Diseases are hardcoded for perro/gato/conejo.
+
+Deploy to Cloud Run:
+```bash
+cd backend
+gcloud run deploy medipet-api --source . --region us-central1 --allow-unauthenticated
+```
+
+After deployment, update `BASE_URL` in `data/remote/RetrofitClient.kt` with the Cloud Run URL.
+
+**Android**: `DiseaseScreen` fetches from the API on first launch and caches results in Room
+(table `diseases`, DB version 5). Offline mode falls back to cached data silently.
+`ChatViewModel` includes up to 5 cached diseases for the pet's species in the Gemini system prompt.

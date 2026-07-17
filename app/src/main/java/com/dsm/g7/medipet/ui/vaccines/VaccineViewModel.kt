@@ -5,8 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
+import androidx.work.*
 import com.dsm.g7.medipet.data.local.AppDatabase
 import com.dsm.g7.medipet.data.local.Vaccine
 import com.dsm.g7.medipet.worker.VaccineReminderWorker
@@ -86,30 +85,55 @@ class VaccineViewModel(app: Application, val petId: String) : AndroidViewModel(a
                 dateMillis = dateMillis,
                 isApplied = false
             )
-            vaccineDao.insertVaccine(vaccine)
+            val vaccineId = vaccineDao.insertVaccine(vaccine).toInt()
+            val petName = petDao.getPetById(petId)?.name ?: petId
+            scheduleReminder(petId, vaccineId, name, petName, dateMillis)
         }
-        scheduleReminder(dateMillis)
     }
 
     fun toggleVaccineApplied(vaccine: Vaccine) {
         viewModelScope.launch {
-            vaccineDao.updateVaccineStatus(vaccine.id, !vaccine.isApplied)
+            val newApplied = !vaccine.isApplied
+            vaccineDao.updateVaccineStatus(vaccine.id, newApplied)
+            if (newApplied) {
+                cancelReminder(petId, vaccine.id)
+            }
         }
     }
 
     fun deleteVaccine(vaccine: Vaccine) {
         viewModelScope.launch {
+            cancelReminder(petId, vaccine.id)
             vaccineDao.deleteVaccine(vaccine)
         }
     }
 
-    private fun scheduleReminder(vaccineDateMillis: Long) {
-        val delay = vaccineDateMillis - System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1)
+    private fun scheduleReminder(
+        petId: String,
+        vaccineId: Int,
+        vaccineName: String,
+        petName: String,
+        dateMillis: Long
+    ) {
+        val delay = dateMillis - System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)
         if (delay <= 0) return
+        val data = workDataOf(
+            VaccineReminderWorker.KEY_VACCINE_NAME to vaccineName,
+            VaccineReminderWorker.KEY_PET_NAME to petName
+        )
         val request = OneTimeWorkRequestBuilder<VaccineReminderWorker>()
             .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+            .setInputData(data)
             .build()
-        workManager.enqueue(request)
+        workManager.enqueueUniqueWork(
+            "vaccine_reminder_${petId}_${vaccineId}",
+            ExistingWorkPolicy.REPLACE,
+            request
+        )
+    }
+
+    private fun cancelReminder(petId: String, vaccineId: Int) {
+        workManager.cancelUniqueWork("vaccine_reminder_${petId}_${vaccineId}")
     }
 }
 

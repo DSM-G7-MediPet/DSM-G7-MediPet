@@ -14,3 +14,6 @@
 .cxx
 local.properties
 apikeys.properties
+keystore.properties
+keystore/*.keystore
+keystore/*.jks

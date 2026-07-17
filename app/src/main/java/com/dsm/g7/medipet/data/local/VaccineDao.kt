@@ -13,7 +13,7 @@ interface VaccineDao {
     fun getVaccinesForPet(petId: String): Flow<List<Vaccine>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertVaccine(vaccine: Vaccine)
+    suspend fun insertVaccine(vaccine: Vaccine): Long
 
     @androidx.room.Delete
     suspend fun deleteVaccine(vaccine: Vaccine)

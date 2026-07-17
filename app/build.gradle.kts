@@ -12,6 +12,11 @@ val apiKeyProps = Properties().also { props ->
     if (f.exists()) f.inputStream().use { props.load(it) }
 }
 
+val keystoreProps = Properties().also { props ->
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { props.load(it) }
+}
+
 android {
     namespace = "com.dsm.g7.medipet"
     compileSdk = 36
@@ -26,13 +31,27 @@ android {
         buildConfigField("String", "GEMINI_API_KEY", "\"${apiKeyProps.getProperty("GEMINI_API_KEY", "")}\"")
     }
 
+    signingConfigs {
+        create("release") {
+            val ksFile = keystoreProps.getProperty("storeFile")
+            if (!ksFile.isNullOrBlank()) {
+                storeFile = rootProject.file(ksFile)
+                storePassword = keystoreProps.getProperty("storePassword", "")
+                keyAlias = keystoreProps.getProperty("keyAlias", "")
+                keyPassword = keystoreProps.getProperty("keyPassword", "")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -96,6 +115,12 @@ dependencies {
 
     // Google Generative AI (Gemini)
     implementation(libs.generativeai)
+
+    // Retrofit + Gson (Disease API)
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.gson)
+
+    implementation(libs.kotlinx.coroutines.play.services)
 
     // Tests
     testImplementation(libs.junit)

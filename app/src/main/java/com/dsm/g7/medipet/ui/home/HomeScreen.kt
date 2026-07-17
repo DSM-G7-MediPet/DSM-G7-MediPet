@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,7 +27,8 @@ fun HomeScreen(
     onNavigateToAppointments: () -> Unit = {},
     onNavigateToVaccines: () -> Unit = {},
     onNavigateToDashboard: () -> Unit = {},
-    onNavigateToChat: (petId: String) -> Unit = {}
+    onNavigateToChat: (petId: String) -> Unit = {},
+    onNavigateToDiseases: () -> Unit = {}
 ) {
     val pets by viewModel.pets.collectAsState()
     val todayAppointments by viewModel.todayAppointments.collectAsState()
@@ -144,6 +146,29 @@ fun HomeScreen(
                         }
                         Spacer(Modifier.weight(1f))
                         Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = Color.White)
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                // Disease catalog card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onNavigateToDiseases,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(Icons.Filled.LocalHospital, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(28.dp))
+                        Column {
+                            Text("Catálogo de Enfermedades", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                            Text("Perro · Gato · Conejo", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f))
+                        }
+                        Spacer(Modifier.weight(1f))
+                        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
                     }
                 }
             }

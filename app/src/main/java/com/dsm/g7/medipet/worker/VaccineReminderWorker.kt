@@ -7,45 +7,49 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import java.util.concurrent.TimeUnit
 
 class VaccineReminderWorker(
     private val context: Context,
     workerParams: WorkerParameters
 ) : CoroutineWorker(context, workerParams) {
 
+    companion object {
+        const val KEY_VACCINE_NAME = "vaccine_name"
+        const val KEY_PET_NAME = "pet_name"
+    }
+
     override suspend fun doWork(): Result {
         return try {
-            mostrarNotificacionLocal()
+            val vaccineName = inputData.getString(KEY_VACCINE_NAME) ?: "vacuna"
+            val petName = inputData.getString(KEY_PET_NAME) ?: "tu mascota"
+            showNotification(vaccineName, petName)
             Result.success()
         } catch (e: Exception) {
             Result.retry()
         }
     }
 
-    private fun mostrarNotificacionLocal() {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    private fun showNotification(vaccineName: String, petName: String) {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "vaccine_reminder_channel"
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "Recordatorios de Vacunas",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Canal para notificar vacunas próximas a vencer"
-            }
-            notificationManager.createNotificationChannel(channel)
+            nm.createNotificationChannel(
+                NotificationChannel(channelId, "Recordatorios de Vacunas", NotificationManager.IMPORTANCE_HIGH)
+                    .apply { description = "Recuerda vacunar a tus mascotas a tiempo" }
+            )
         }
 
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("¡Recordatorio de Vacunación MediPet!")
-            .setContentText("Tienes vacunas programadas para los próximos 7 días.")
+            .setContentTitle("Vacuna próxima — $petName")
+            .setContentText("La vacuna '$vaccineName' vence en 7 días. ¡No olvides agendar la cita!")
+            .setStyle(NotificationCompat.BigTextStyle()
+                .bigText("La vacuna '$vaccineName' de $petName vence en 7 días. Agenda la cita con tu veterinario pronto."))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .build()
 
-        notificationManager.notify(1001, notification)
+        nm.notify(("vaccine_$vaccineName").hashCode(), notification)
     }
 }

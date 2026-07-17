@@ -26,7 +26,9 @@ import com.dsm.g7.medipet.auth.SignUpScreen
 import com.dsm.g7.medipet.auth.ProfileScreen
 import com.dsm.g7.medipet.data.local.UserRole
 import com.dsm.g7.medipet.ui.appointments.AppointmentScreen
+import com.dsm.g7.medipet.ui.breed.BreedClassifierScreen
 import com.dsm.g7.medipet.ui.chat.ChatScreen
+import com.dsm.g7.medipet.ui.diseases.DiseaseScreen
 import com.dsm.g7.medipet.ui.home.HomeScreen
 import com.dsm.g7.medipet.ui.home.OwnerDashboardScreen
 import com.dsm.g7.medipet.ui.medical.MedicalRecordScreen
@@ -55,6 +57,8 @@ object Routes {
     const val VET_PATIENTS = "vet_patients"
     const val DASHBOARD    = "owner_dashboard"
     const val CHAT         = "chat"
+    const val DISEASES     = "diseases"
+    const val BREED_CLASSIFIER = "breed_classifier"
 }
 
 private data class BottomNavItem(
@@ -180,8 +184,13 @@ fun MediPetNavigation(authViewModel: AuthViewModel = viewModel()) {
                     onNavigateToAppointments = { navController.navigate(Routes.APPOINTMENTS) },
                     onNavigateToVaccines     = { navController.navigate("${Routes.VACCINES}/all") },
                     onNavigateToDashboard    = { navController.navigate(Routes.DASHBOARD) },
-                    onNavigateToChat         = { petId -> navController.navigate("${Routes.CHAT}/$petId") }
+                    onNavigateToChat         = { petId -> navController.navigate("${Routes.CHAT}/$petId") },
+                    onNavigateToDiseases     = { navController.navigate(Routes.DISEASES) }
                 )
+            }
+
+            composable(Routes.DISEASES) {
+                DiseaseScreen(onNavigateBack = { navController.popBackStack() })
             }
 
             composable(Routes.DASHBOARD) {
@@ -245,7 +254,21 @@ fun MediPetNavigation(authViewModel: AuthViewModel = viewModel()) {
                     onNavigateToMedical = { id -> navController.navigate("${Routes.MEDICAL}/$id") },
                     onNavigateToAppointments = { id ->
                         navController.navigate("${Routes.APPOINTMENTS}?petId=$id")
+                    },
+                    onNavigateToBreedClassifier = { id ->
+                        navController.navigate("${Routes.BREED_CLASSIFIER}/$id")
                     }
+                )
+            }
+
+            composable(
+                route = "${Routes.BREED_CLASSIFIER}/{petId}",
+                arguments = listOf(navArgument("petId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val petId = backStackEntry.arguments?.getString("petId") ?: ""
+                BreedClassifierScreen(
+                    petId = petId,
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 

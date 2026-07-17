@@ -81,7 +81,7 @@ fun VetDashboardScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Metric cards
+            // Tarjetas Métricas
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
